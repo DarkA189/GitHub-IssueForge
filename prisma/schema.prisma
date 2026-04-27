@@ -1,0 +1,170 @@
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+model User {
+  id                String          @id @default(cuid())
+  email             String?         @unique
+  name              String?
+  image             String?
+  githubId          String?         @unique
+  githubUsername    String?
+  createdAt         DateTime        @default(now())
+  updatedAt         DateTime        @updatedAt
+
+  accounts          Account[]
+  sessions          Session[]
+  repositories      Repository[]
+  issues            Issue[]
+  analyses          Analysis[]
+  feedback          Feedback[]
+
+  @@index([githubId])
+  @@index([createdAt])
+}
+
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String?  @db.Text
+  access_token      String?  @db.Text
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String?  @db.Text
+  session_state     String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+  @@index([userId])
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+model Repository {
+  id            String   @id @default(cuid())
+  userId        String
+  owner         String
+  name          String
+  fullName      String   @unique
+  description   String?
+  url           String
+  isPrivate     Boolean  @default(false)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  user   User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  issues Issue[]
+
+  @@unique([userId, fullName])
+  @@index([userId])
+  @@index([createdAt])
+}
+
+model Issue {
+  id                String    @id @default(cuid())
+  userId            String
+  repositoryId      String
+  githubIssueNumber Int
+  title             String    @db.Text
+  body              String?   @db.Text
+  author            String?
+  state             String    @default("open")
+  url               String
+  createdAtGithub   DateTime?
+  updatedAtGithub   DateTime?
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+
+  user       User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  repository Repository @relation(fields: [repositoryId], references: [id], onDelete: Cascade)
+  analysis   Analysis?
+  feedback   Feedback[]
+
+  @@unique([repositoryId, githubIssueNumber])
+  @@index([userId])
+  @@index([repositoryId])
+  @@index([state])
+  @@index([createdAt])
+}
+
+model Analysis {
+  id                String    @id @default(cuid())
+  userId            String
+  issueId           String    @unique
+  severity          String    @default("medium")
+  confidence        Float     @default(0.5)
+  rootCause         String?   @db.Text
+  reproductionSteps String?   @db.Text
+  suggestedFix      String?   @db.Text
+  codeDiff          String?   @db.Text
+  affectedFiles     String[]  @default([])
+  prDescription     String?   @db.Text
+  llmModel          String?
+  analysisTime      Int?
+  rawLlmResponse    String?   @db.Text
+  status            String    @default("pending")
+  errorMessage      String?   @db.Text
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  issue  Issue  @relation(fields: [issueId], references: [id], onDelete: Cascade)
+  feedback Feedback?
+
+  @@index([userId])
+  @@index([issueId])
+  @@index([status])
+  @@index([severity])
+  @@index([createdAt])
+}
+
+model Feedback {
+  id         String   @id @default(cuid())
+  userId     String
+  issueId    String
+  analysisId String?  @unique
+  helpful    Boolean?
+  comment    String?  @db.Text
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  user     User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  issue    Issue      @relation(fields: [issueId], references: [id], onDelete: Cascade)
+  analysis Analysis?  @relation(fields: [analysisId], references: [id], onDelete: SetNull)
+
+  @@unique([issueId, userId])
+  @@index([userId])
+  @@index([issueId])
+  @@index([helpful])
+  @@index([createdAt])
+}
+
+model RateLimit {
+  id            String   @id @default(cuid())
+  userId        String   @unique
+  requestCount  Int      @default(0)
+  resetAt       DateTime
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@index([resetAt])
+}
