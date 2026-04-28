@@ -70,14 +70,14 @@ export async function GET(req: NextRequest) {
     ]);
 
     const severityMap = Object.fromEntries(
-      severityBreakdown.map((item: any) => [
+      (severityBreakdown as any[]).map((item: any) => [
         item.severity,
         item._count,
       ])
     );
 
-    const helpful = feedbackStats.find((f: any) => f.helpful === true)?._count || 0;
-    const unhelpful = feedbackStats.find((f: any) => f.helpful === false)?._count || 0;
+    const helpful = (feedbackStats as any[]).find((f: any) => f.helpful === true)?._count || 0;
+    const unhelpful = (feedbackStats as any[]).find((f: any) => f.helpful === false)?._count || 0;
 
     return NextResponse.json({
       totalAnalyses,
@@ -90,7 +90,7 @@ export async function GET(req: NextRequest) {
         helpful + unhelpful > 0
           ? ((helpful / (helpful + unhelpful)) * 100).toFixed(1)
           : 0,
-      topRepositories: topRepositories.map((repo: any) => ({
+      topRepositories: (topRepositories as any[]).map((repo: any) => ({
         name: repo.fullName,
         issueCount: repo.issues.length,
         analysisCount: repo.issues.filter((i: any) => i.analysis).length,
