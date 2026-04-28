@@ -27,10 +27,15 @@ export const authConfig: NextAuthOptions = {
   adapter: PrismaAdapter(prisma),
   providers: [
     GithubProvider({
-      clientId: process.env.GITHUB_ID || '',
-      clientSecret: process.env.GITHUB_SECRET || '',
+      clientId: process.env.GITHUB_ID!,
+      clientSecret: process.env.GITHUB_SECRET!,
       allowDangerousEmailAccountLinking: true,
-    }),
+      authorization: {
+      params: {
+        scope: 'read:user user:email repo',
+    },
+  },
+}),
   ],
   pages: {
     signIn: '/login',
