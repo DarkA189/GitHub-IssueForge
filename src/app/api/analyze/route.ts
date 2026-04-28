@@ -8,10 +8,10 @@ import { checkRateLimit } from '@/lib/rate-limit';
 import { NextRequest, NextResponse } from 'next/server';
 
 export async function POST(req: NextRequest) {
-  
+  console.log('[Analyze Route] Request received');
+
   try {
     const session = await getServerSession(authConfig);
-    console.log('[Analyze Route] Session:', !!session?.user?.id);
 
     if (!session?.user?.id) {
       return NextResponse.json(
@@ -19,6 +19,8 @@ export async function POST(req: NextRequest) {
         { status: 401 }
       );
     }
+
+    console.log('[Analyze Route] Session:', !!session?.user?.id);
 
     const rateLimitOk = await checkRateLimit(session.user.id);
     if (!rateLimitOk) {
@@ -28,7 +30,9 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const { issueId, includeCodeContext = true } = await req.json();
+    const { issueId, forceReanalyze = false, includeCodeContext = true } = await req.json();
+
+    console.log('[Analyze Route] Issue:', issueId, 'Force:', forceReanalyze);
 
     const issue = await prisma.issue.findUnique({
       where: { id: issueId },
@@ -42,30 +46,28 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Check if analysis already exists
-    if (issue.analysis && issue.analysis.status === 'completed') {
+    // Only return cached analysis if NOT forcing re-analyze
+    if (!forceReanalyze && issue.analysis && issue.analysis.status === 'completed') {
+      console.log('[Analyze Route] Returning cached analysis');
       return NextResponse.json(issue.analysis);
     }
 
-    // Create or update analysis record
-    let analysis = await prisma.analysis.findUnique({
-      where: { issueId },
-    });
-
-    if (!analysis) {
-      analysis = await prisma.analysis.create({
-        data: {
-          userId: session.user.id,
-          issueId,
-          status: 'analyzing',
-        },
-      });
-    } else {
-      analysis = await prisma.analysis.update({
-        where: { id: analysis.id },
-        data: { status: 'analyzing' },
+    // If forcing re-analyze, delete old analysis first
+    if (forceReanalyze && issue.analysis) {
+      console.log('[Analyze Route] Deleting old analysis for re-analyze');
+      await prisma.analysis.delete({
+        where: { id: issue.analysis.id },
       });
     }
+
+    // Create new analysis record
+    const analysis = await prisma.analysis.create({
+      data: {
+        userId: session.user.id,
+        issueId,
+        status: 'analyzing',
+      },
+    });
 
     const startTime = Date.now();
 
@@ -73,7 +75,6 @@ export async function POST(req: NextRequest) {
 
     if (includeCodeContext) {
       try {
-        // Get GitHub token
         const account = await prisma.account.findFirst({
           where: {
             userId: session.user.id,
@@ -84,7 +85,6 @@ export async function POST(req: NextRequest) {
         if (account?.access_token) {
           const octokit = await createOctokitInstance(account.access_token);
 
-          // Search for relevant code files
           const commonPaths = [
             'src/index.ts',
             'src/main.ts',
@@ -110,23 +110,27 @@ export async function POST(req: NextRequest) {
           }
         }
       } catch (error) {
-        console.warn('Could not fetch code context:', error);
+        console.warn('[Analyze Route] Could not fetch code context:', error);
       }
     }
 
     let analysisResult;
+    let usedFallback = false;
 
     try {
+      console.log('[Analyze Route] Calling analyzeIssue...');
       analysisResult = await analyzeIssue(
         issue.title,
         issue.body || '',
         codeContext
       );
+      console.log('[Analyze Route] analyzeIssue succeeded');
     } catch (error) {
-      console.error('LLM analysis failed:', error);
-      console.error('Provider:', process.env.LLM_PROVIDER);
-      console.error('API Key exists:', !!process.env.GROK_API_KEY || !!process.env.ANTHROPIC_API_KEY || !!process.env.OPENAI_API_KEY);
+      console.error('[Analyze Route] LLM analysis failed:', error);
+      console.error('[Analyze Route] Provider:', process.env.LLM_PROVIDER);
+      console.error('[Analyze Route] GROQ key exists:', !!process.env.GROQ_API_KEY);
       analysisResult = generateBasicAnalysis(issue.title, issue.body || '');
+      usedFallback = true;
     }
 
     const analysisTime = Date.now() - startTime;
@@ -142,15 +146,18 @@ export async function POST(req: NextRequest) {
         codeDiff: analysisResult.codeDiff,
         prDescription: analysisResult.prDescription,
         affectedFiles: analysisResult.affectedFiles || [],
-        llmModel: process.env.LLM_PROVIDER,
+        llmModel: usedFallback ? 'fallback' : (process.env.LLM_PROVIDER || 'groq'),
         analysisTime,
         status: 'completed',
+        errorMessage: usedFallback ? 'LLM failed, used basic analysis' : null,
       },
     });
 
+    console.log('[Analyze Route] Analysis saved, model:', usedFallback ? 'fallback' : 'groq');
+
     return NextResponse.json(updatedAnalysis);
   } catch (error) {
-    console.error('Error analyzing issue:', error);
+    console.error('[Analyze Route] Error:', error);
 
     return NextResponse.json(
       { error: 'Failed to analyze issue' },

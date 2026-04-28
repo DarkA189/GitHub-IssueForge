@@ -5,7 +5,7 @@ import React from 'react';
 import { IssueCard } from './IssueCard';
 import { LoadingSpinner } from './LoadingSpinner';
 import { RepositorySelector } from './RepositorySelector';
-import { RefreshCw, AlertCircle } from 'lucide-react';
+import { RefreshCw, AlertCircle, ArrowLeft, Search, CircleDot } from 'lucide-react';
 
 interface Issue {
   id: string;
@@ -14,6 +14,7 @@ interface Issue {
   author?: string;
   state: string;
   url: string;
+  githubIssueNumber: number;
   createdAt: Date;
   analysis?: {
     id: string;
@@ -23,15 +24,12 @@ interface Issue {
   };
 }
 
-interface IssueDashboardProps {
-  repositoryId?: string;
-}
-
-export function IssueDashboard({ repositoryId }: IssueDashboardProps) {
+export function IssueDashboard() {
   const [issues, setIssues] = React.useState<Issue[]>([]);
   const [selectedRepo, setSelectedRepo] = React.useState<any>(null);
   const [loading, setLoading] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
+  const [searchQuery, setSearchQuery] = React.useState('');
 
   const fetchIssues = React.useCallback(async (repoId: string) => {
     setLoading(true);
@@ -50,9 +48,7 @@ export function IssueDashboard({ repositoryId }: IssueDashboardProps) {
         }))
       );
     } catch (err) {
-      setError(
-        err instanceof Error ? err.message : 'Failed to fetch issues'
-      );
+      setError(err instanceof Error ? err.message : 'Failed to fetch issues');
     } finally {
       setLoading(false);
     }
@@ -65,69 +61,118 @@ export function IssueDashboard({ repositoryId }: IssueDashboardProps) {
     }
   };
 
+  const handleBackToRepos = () => {
+    setSelectedRepo(null);
+    setIssues([]);
+    setError(null);
+    setSearchQuery('');
+  };
+
+  const filteredIssues = issues.filter(issue =>
+    issue.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    (issue.body && issue.body.toLowerCase().includes(searchQuery.toLowerCase()))
+  );
+
+  const analyzedCount = issues.filter(i => i.analysis?.status === 'completed').length;
+
   if (!selectedRepo) {
-    return (
-      <div>
-        <h2 className="text-2xl font-bold text-gray-900 mb-4">
-          Select a Repository
-        </h2>
-        <RepositorySelector onSelect={handleRepositorySelect} loading={loading} />
-      </div>
-    );
+    return <RepositorySelector onSelect={handleRepositorySelect} loading={loading} />;
   }
 
   return (
     <div>
-      <div className="flex items-center justify-between mb-6">
-        <div>
-          <h2 className="text-2xl font-bold text-gray-900">
-            {selectedRepo.full_name}
-          </h2>
-          <p className="text-gray-600 mt-1">
-            {issues.length} open issue{issues.length !== 1 ? 's' : ''}
-          </p>
-        </div>
+      <div className="mb-4">
         <button
-          onClick={() => selectedRepo.id && fetchIssues(selectedRepo.id)}
-          disabled={loading}
-          className="flex items-center space-x-2 px-4 py-2 rounded-lg bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-50 transition"
+          onClick={handleBackToRepos}
+          className="inline-flex items-center space-x-1.5 text-sm text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 transition font-medium"
         >
-          <RefreshCw size={18} className={loading ? 'animate-spin' : ''} />
-          <span>Refresh</span>
+          <ArrowLeft size={16} />
+          <span>Back to repositories</span>
         </button>
       </div>
 
+      <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg mb-4">
+        <div className="px-5 py-4 border-b border-gray-200 dark:border-gray-700">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center space-x-3">
+              <div className="w-8 h-8 rounded-md bg-gray-100 dark:bg-gray-700 flex items-center justify-center">
+                <CircleDot size={18} className="text-gray-600 dark:text-gray-300" />
+              </div>
+              <div>
+                <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
+                  {selectedRepo.full_name || selectedRepo.name}
+                </h2>
+                <p className="text-sm text-gray-500 dark:text-gray-400">
+                  {issues.length} open issue{issues.length !== 1 ? 's' : ''} · {analyzedCount} analyzed
+                </p>
+              </div>
+            </div>
+            <button
+              onClick={() => selectedRepo.id && fetchIssues(selectedRepo.id)}
+              disabled={loading}
+              className="inline-flex items-center space-x-2 px-3 py-1.5 text-sm rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-600 disabled:opacity-50 transition font-medium"
+            >
+              <RefreshCw size={14} className={loading ? 'animate-spin' : ''} />
+              <span>Sync</span>
+            </button>
+          </div>
+        </div>
+
+        <div className="px-5 py-3 bg-gray-50 dark:bg-gray-800/50">
+          <div className="relative">
+            <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="Filter issues..."
+              className="w-full pl-9 pr-4 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            />
+          </div>
+        </div>
+      </div>
+
       {error && (
-        <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-4 flex items-start space-x-3">
-          <AlertCircle className="text-red-600 flex-shrink-0 mt-0.5" />
-          <p className="text-red-800">{error}</p>
+        <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-4 mb-4 flex items-start space-x-3">
+          <AlertCircle className="text-red-600 dark:text-red-400 flex-shrink-0 mt-0.5" size={18} />
+          <p className="text-red-800 dark:text-red-300 text-sm">{error}</p>
         </div>
       )}
 
       {loading && <LoadingSpinner />}
 
       {!loading && issues.length === 0 && (
-        <div className="bg-gray-50 border border-gray-200 rounded-lg p-8 text-center">
-          <p className="text-gray-600">No open issues found</p>
+        <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-12 text-center">
+          <CircleDot size={40} className="mx-auto text-gray-300 dark:text-gray-600 mb-3" />
+          <p className="text-gray-600 dark:text-gray-400 font-medium">No open issues found</p>
+          <p className="text-gray-400 dark:text-gray-500 text-sm mt-1">This repository has no open issues to analyze</p>
         </div>
       )}
 
-      {!loading && issues.length > 0 && (
-        <div className="grid gap-3">
-          {issues.map((issue) => (
+      {!loading && filteredIssues.length > 0 && (
+        <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg overflow-hidden">
+          {filteredIssues.map((issue, index) => (
             <IssueCard
               key={issue.id}
               id={issue.id}
               title={issue.title}
               body={issue.body}
               author={issue.author}
+              issueNumber={issue.githubIssueNumber}
               severity={issue.analysis?.severity}
               confidence={issue.analysis?.confidence}
               hasAnalysis={!!issue.analysis}
               analysisStatus={issue.analysis?.status}
               createdAt={issue.createdAt}
+              isLast={index === filteredIssues.length - 1}
             />
           ))}
+        </div>
+      )}
+
+      {!loading && issues.length > 0 && filteredIssues.length === 0 && (
+        <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-8 text-center">
+          <p className="text-gray-500 dark:text-gray-400 text-sm">No issues match your search</p>
         </div>
       )}
     </div>

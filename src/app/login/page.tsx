@@ -3,23 +3,25 @@
 
 import React from 'react';
 import { signIn } from 'next-auth/react';
-import { Github } from 'lucide-react';
+import { Github, Zap } from 'lucide-react';
 
 export default function LoginPage() {
   const [loading, setLoading] = React.useState(false);
 
   const handleGitHubSignIn = async () => {
     setLoading(true);
-    await signIn('github', { redirect: true, redirectTo: '/dashboard' });
+    await signIn('github', { callbackUrl: '/dashboard' });
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center">
-      <div className="bg-white rounded-lg border border-gray-200 p-8 max-w-md w-full">
+    <div className="min-h-[80vh] flex items-center justify-center">
+      <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-8 max-w-md w-full shadow-sm">
         <div className="text-center mb-8">
-          <div className="text-5xl mb-4">⚡</div>
-          <h1 className="text-3xl font-bold text-gray-900">IssueForge</h1>
-          <p className="text-gray-600 mt-2">
+          <div className="flex justify-center mb-4">
+            <Zap size={40} className="text-yellow-500" />
+          </div>
+          <h1 className="text-3xl font-bold text-gray-900 dark:text-gray-100">IssueForge</h1>
+          <p className="text-gray-600 dark:text-gray-400 mt-2">
             Sign in to start triaging issues with AI
           </p>
         </div>
@@ -27,7 +29,7 @@ export default function LoginPage() {
         <button
           onClick={handleGitHubSignIn}
           disabled={loading}
-          className="w-full flex items-center justify-center space-x-3 px-6 py-3 rounded-lg bg-gray-900 text-white hover:bg-gray-800 disabled:opacity-50 transition font-semibold"
+          className="w-full flex items-center justify-center space-x-3 px-6 py-3 rounded-lg bg-gray-900 dark:bg-gray-100 text-white dark:text-gray-900 hover:bg-gray-800 dark:hover:bg-gray-200 disabled:opacity-50 transition font-semibold"
         >
           <Github size={20} />
           <span>
@@ -35,7 +37,7 @@ export default function LoginPage() {
           </span>
         </button>
 
-        <p className="text-center text-sm text-gray-600 mt-6">
+        <p className="text-center text-sm text-gray-500 dark:text-gray-400 mt-6">
           We'll only access your repositories with your permission
         </p>
       </div>
