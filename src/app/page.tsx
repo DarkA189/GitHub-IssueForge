@@ -4,6 +4,7 @@ import { getServerSession } from 'next-auth/next';
 import { authConfig } from '@/lib/auth';
 import Link from 'next/link';
 import { ArrowRight, Zap, Brain, GitMerge } from 'lucide-react';
+import Image from "next/image";
 
 export default async function Home() {
   const session = await getServerSession(authConfig);
@@ -18,10 +19,16 @@ export default async function Home() {
       <div className="flex-1 flex items-center justify-center">
         <div className="text-center max-w-3xl">
           <div className="mb-6 flex justify-center">
-            <div className="text-6xl">⚡</div>
+            <Image
+              src="/issueforge-icon.png"
+              alt="IssueForge Logo"
+              width={160}
+              height={50}
+              priority
+            />
           </div>
 
-          <h1 className="text-5xl md:text-6xl font-bold text-gray-900 mb-4">
+          <h1 className="text-3xl font-bold text-gray-900 dark:text-gray-100">
             IssueForge
           </h1>
 

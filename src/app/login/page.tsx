@@ -4,6 +4,8 @@
 import React from 'react';
 import { signIn } from 'next-auth/react';
 import { Github, Zap } from 'lucide-react';
+import Image from "next/image";
+
 
 export default function LoginPage() {
   const [loading, setLoading] = React.useState(false);
@@ -18,7 +20,13 @@ export default function LoginPage() {
       <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-8 max-w-md w-full shadow-sm">
         <div className="text-center mb-8">
           <div className="flex justify-center mb-4">
-            <Zap size={40} className="text-yellow-500" />
+            <Image
+              src="/issueforge-icon.png"
+              alt="IssueForge Logo"
+              width={150}
+              height={40}
+              priority
+              />
           </div>
           <h1 className="text-3xl font-bold text-gray-900 dark:text-gray-100">IssueForge</h1>
           <p className="text-gray-600 dark:text-gray-400 mt-2">

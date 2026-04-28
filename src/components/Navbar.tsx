@@ -6,6 +6,7 @@ import Link from 'next/link';
 import { useSession, signOut } from 'next-auth/react';
 import { LogOut, BarChart3, CircleDot, Zap, Sun, Moon } from 'lucide-react';
 import { useTheme } from './ThemeProvider';
+import Image from "next/image";
 
 export function Navbar() {
   const { data: session } = useSession();
@@ -20,8 +21,13 @@ export function Navbar() {
               href="/dashboard"
               className="flex items-center space-x-2 text-white hover:text-gray-300 transition"
             >
-              <Zap size={20} className="text-yellow-400" />
-              <span className="font-bold text-base">IssueForge</span>
+              <Image
+  src="/issueforge-horizontal-monochrome.png"
+  alt="IssueForge Logo"
+  width={135}
+  height={30}
+  priority
+/>
             </Link>
             {session && (
               <div className="hidden md:flex items-center space-x-4">
